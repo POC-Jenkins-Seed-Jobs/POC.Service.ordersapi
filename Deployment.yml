@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ordersapi
+  labels:
+    app: ordersapi
+spec:
+  selector:
+    matchLabels:
+      app: ordersapi
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: ordersapi
+    spec:
+      containers:
+      - name: ordersapi
+        image: iamnilanjan3/ecom-orders-api:latest
+        imagePullPolicy: Always
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+        env:
+        - name: MONGODB_URL
+          value: mongodb://root:root@mongodb-0.mongodb-headless:27017,mongodb-1.mongodb-headless:27017,mongodb-2.mongodb-headless:27017/
+        - name: ORDERS_API_URL
+          value: http://ordersapi:5151
+        ports:
+        - containerPort: 5151
+          protocol: TCP
+      - name: aws-otel-collector
+        image: amazon/aws-otel-collector:latest
+        env:
+          - name: AWS_REGION
+            value: "us-east-1"
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu:  256m
+            memory: 512Mi
+          requests:
+            cpu: 32m
+            memory: 24Mi
+      restartPolicy: Always
+      # securityContext:
+      #   runAsUser: 0
+      # terminationGracePeriodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  # annotations:
+  #   service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+  name: ordersapi
+  labels:
+    app: ordersapi
+spec:
+  type: LoadBalancer
+  ports:
+    - name: http
+      port: 5151
+      targetPort: 5151
+      protocol: TCP
+  selector:
+    app: ordersapi
